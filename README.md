@@ -1,5 +1,5 @@
 **Was ist TernberGuessr?**
-TernberGuesser ist ein Spiel, wo man ein zufälliges Bild innerhalb Ternberg bekommt, und auf der Karte die Position anzeigen muss. Die „Tägliche Challenge" ist für jeden gleich und nimmt eine zufällige Position täglich um 00:00. Erstelle gerne einen Account!
+TernberGuessr ist ein Spiel, wo man ein zufälliges Bild innerhalb Ternberg bekommt, und auf der Karte die Position anzeigen muss. Die „Tägliche Challenge" ist für jeden gleich und nimmt eine zufällige Position täglich um 00:00. Erstelle gerne einen Account!
 
 **Feedback**
 Für Fragen, Infos, Ideen, Feedback oder Beschwerden bitte kontaktiere mich!
