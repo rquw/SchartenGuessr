@@ -1833,8 +1833,8 @@ async function checkAndUnlockAchievements(opts){
   }catch(e){}
 }
 
-// achievement toast queue — so mehrere Toasts nicht übereinander sind
-var _achToastQueue=[], _achToastCombo=0, _achToastTimer=null;
+// achievement toast queue
+var _achToastQueue=[], _achToastTimer=null;
 
 function showAchievementToast(def){
   _achToastQueue.push(def);
@@ -1844,16 +1844,11 @@ function showAchievementToast(def){
 function _drainAchQueue(){
   if(!_achToastQueue.length){ _achToastTimer=null; return; }
   var def=_achToastQueue.shift();
-  _achToastCombo++;
-  _playAchievementSound(_achToastCombo);
+  _playAchievementSound();
 
   var toast=document.createElement('div');
   toast.className='achievement-toast';
-  var comboTag=_achToastCombo>1
-    ? '<div class="ach-toast-combo">'+_achToastCombo+'x Combo! 🔥</div>'
-    : '';
   toast.innerHTML=
-    comboTag+
     '<span class="ach-toast-icon">'+def.icon+'</span>'+
     '<div><div class="ach-toast-title">'+def.title+'</div>'+
     '<div class="ach-toast-desc">'+def.desc+'</div></div>';
@@ -1866,24 +1861,12 @@ function _drainAchQueue(){
   },3000);
 }
 
-function _playAchievementSound(combo){
+function _playAchievementSound(){
   if(VOL===0) return;
-  // Tonhöhe steigt mit jeder Combo
-  var base=440, step=80;
-  var freq=Math.min(base+step*(combo-1), 1800);
+  var freq=520;
   tone(freq,'sine',.12,.1);
   tone(freq*1.25,'sine',.09,.07,0,.07);
   tone(freq*1.5,'sine',.07,.05,0,.13);
-  if(combo>=3){
-    setTimeout(function(){ chord([freq,freq*1.25,freq*1.5,freq*2],'sine',.25,.06); },180);
-  }
-}
-
-// Combo-Reset nach Pause
-var _achComboResetTimer=null;
-function _resetAchComboSoon(){
-  clearTimeout(_achComboResetTimer);
-  _achComboResetTimer=setTimeout(function(){ _achToastCombo=0; },6000);
 }
 
 // K-Taste: Test-Achievement (zählt nicht, wird nicht gespeichert)
@@ -1891,6 +1874,17 @@ document.addEventListener('keydown',function(e){
   if(e.key==='k'||e.key==='K'){
     showAchievementToast({icon:'🧪',title:'Test-Achievement',desc:'Nur zum Ausprobieren — zählt nicht!'});
   }
+});
+
+// ── MEHR GUESSR DROPDOWN ──
+function toggleMehrGuessr(e){
+  e.stopPropagation();
+  var dd=document.getElementById('mehr-guessr-dropdown');
+  if(dd) dd.classList.toggle('open');
+}
+document.addEventListener('click',function(){
+  var dd=document.getElementById('mehr-guessr-dropdown');
+  if(dd) dd.classList.remove('open');
 });
 
 // ── SCORE CHART ──
@@ -2123,12 +2117,12 @@ async function openProfile(playerName){
     var haveKeys=new Set((achRows||[]).map(function(r){return r.achievement_key;}));
     var achHtml=ACHIEVEMENTS.map(function(a){
       var unlocked=haveKeys.has(a.key);
-      return '<div class="ach-item'+(unlocked?'':' ach-locked')+'">'
+      return '<div class="ach-item'+(unlocked?' ach-unlocked':' ach-locked')+'">'
         +'<span class="ach-icon">'+a.icon+'</span>'
         +'<div class="ach-info"><div class="ach-title">'+a.title+'</div><div class="ach-desc">'+a.desc+'</div></div>'
         +(unlocked?'<span class="ach-check">✓</span>':'')+'</div>';
     }).join('');
-    $('profile-achievements').innerHTML=achHtml||'<div style="font-size:.65rem;color:var(--mist)">Noch keine Erfolge.</div>';
+    $('profile-achievements').innerHTML=achHtml?'<div class="ach-grid">'+achHtml+'</div>':'<div style="font-size:.65rem;color:var(--mist)">Noch keine Erfolge.</div>';
     // recent scores
     var recentHtml=(scores||[]).slice(0,10).map(function(r){
       var d=new Date(r.created_at);

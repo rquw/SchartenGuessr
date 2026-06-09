@@ -98,6 +98,18 @@
       <button class="info-btn-small" onclick="openInfoScreen()">Info</button>
       <button class="info-btn-small changelog-inline-btn" onclick="openChangelog()">📰 Was ist neu?</button>
     </div>
+    <div class="mehr-guessr-wrap" id="mehr-guessr-wrap">
+      <button class="info-btn-small mehr-guessr-btn" onclick="toggleMehrGuessr(event)">🌍 Mehr Guessr! ▾</button>
+      <div class="mehr-guessr-dropdown" id="mehr-guessr-dropdown">
+        <div class="mehr-guessr-item mehr-guessr-active">
+          <span class="mehr-guessr-check">✓</span>TernberGuessr
+        </div>
+        <div class="mehr-guessr-item" onclick="window.location.href='https://rquw.github.io/WelsGuessr'">
+          <span class="mehr-guessr-check" style="visibility:hidden">✓</span>WelsGuessr
+        </div>
+      </div>
+    </div>
+    <a class="kofi-btn" href="https://ko-fi.com/fabioss" target="_blank" rel="noopener" title="Wenn du willst, kannst du gerne meine Arbeit unterstützen! :)">☕ Unterstütze mich</a>
   </div>
   <div class="footer-made">Website mit Liebe von Fabio erstellt.</div>
   <button id="auth-btn" class="logged-out" onclick="handleAuthBtn()">Anmelden</button>

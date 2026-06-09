@@ -342,11 +342,11 @@ document.addEventListener('DOMContentLoaded', function() {
   ].join('');
   document.head.appendChild(style);
 
-  // combo und minDist bei spielstart zurücksetzen
+  // minDist bei spielstart zurücksetzen
   var _origStartSolo = window.startSolo;
-  if (_origStartSolo) window.startSolo = function() { _achToastCombo = 0; S.minDist = null; _origStartSolo.apply(this, arguments); };
+  if (_origStartSolo) window.startSolo = function() { S.minDist = null; _origStartSolo.apply(this, arguments); };
   var _origStartSurvival = window.startSurvival;
-  if (_origStartSurvival) window.startSurvival = function() { _achToastCombo = 0; S.minDist = null; _origStartSurvival.apply(this, arguments); };
+  if (_origStartSurvival) window.startSurvival = function() { S.minDist = null; _origStartSurvival.apply(this, arguments); };
 
   // vs-panel-grid: display flex statt grid wenn nur ein panel sichtbar
   var _origShowVsPanel = window.showVsPanel;
@@ -422,7 +422,7 @@ function _patchedAfterFinalExtras() {
         perfectRound:  S.roundScores && S.roundScores.some(function(r) { return r.pts >= 4990; }),
         streak:        streak,
         totalScore:    S.score,
-        survivalWin:   S.mode === 'survival' && !S.survivalEliminated,
+        survivalWin:   S.mode === 'survival' && !S.survivalEliminated && S.round >= S.roundsTotal - 1,
         survivalRound: S.round || 0,
         dailyCount:    dailyCount,
         minDist:       S.minDist,
