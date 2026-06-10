@@ -192,7 +192,7 @@ const T = {
 
   verdictPools: [
     [4950, ['Wohnst du da oder was?', 'WOW!', 'Schon narrisch', 'Fotografisches Gedächtnis.', 'Unglaublich.', 'Du WOHNST dort, oder?']],
-    [4700, ['Der war sehr gut.', 'Fast perfekt.', 'Sehr stark, wirklich.', 'Du kennst Ternberg gut!', 'Beeindruckend.', 'Den hast!']],
+    [4700, ['Der war sehr gut.', 'Fast perfekt.', 'Sehr stark, wirklich.', 'Du kennst dich hier gut aus!', 'Beeindruckend.', 'Den hast!']],
     [4300, ['Sehr solid.', 'Gute Runde!', 'Nicht schlecht, nicht schlecht.', 'Die Gegend hast du gefunden.', 'So geht das!', 'Sauber getroffen.']],
     [3600, ['Ganz ordentlich.', 'Solide Leistung.', 'Wars nicht doch das andere Haus?', 'Nicht perfekt, aber gut.', 'Passt eh.', 'War ok.']],
     [2800, ['Mittelfeld. Geht so.', 'Könnte besser sein.', 'Du bist irgendwie in der Nähe.', 'War nicht optimal, aber ok.', 'Na ja. Hast du geschlafen?']],
@@ -200,7 +200,7 @@ const T = {
     [1200, ['Hast du Ternberg schonmal auf der Karte gesehen?', 'Irgendwo in Österreich immerhin.', 'Wennst meinst.', 'Wenigstens im richtigen Land.', 'Zumindest europäischer Kontinent.']],
     [600,  ['War das Absicht?', 'Mutig geraten.', 'Du hast einfach irgendwo geklickt.', 'Ternberg ist in Österreich. Nur zur Info.', 'Fast null, aber das schaffst du auch noch.']],
     [150,  ['Ich frage mich ob du überhaupt hingeschaut hast.', 'Wennst meinst.', 'Fast kein Punkt.', 'Ich bin nicht wütend, nur enttäuscht.', 'Ich bin nicht wütend, nur enttäuscht.']],
-    [0,    ['Ternberg ist in Österreich, nicht in Asien.', 'Na.', 'Der wars wirklich ned.', 'Selbst mit verbundenen Augen wärst du näher dran.', 'Ich bin sprachlos.']]
+    [0,    ['Ternberg ist in Österreich.', 'Nein.', 'Ich bin enttäuscht.', 'Selbst mit verbundenen Augen wärst du näher dran.', 'Ich bin sprachlos.']]
   ],
   // streak
   streakDaySingle:  'Tag gespielt!',
