@@ -135,6 +135,7 @@ function getSurvivalThreshold(round) {
 
 // ── State ──
 var MAX_PTS=5000, CENTER=[47.947,14.358], NEXT_AUTO_SECS=20;
+var SCORES_TABLE='scores', DAILY_TABLE='daily_scores';
 var NAME_REGEX=/^[A-Za-z0-9.\-_]+$/;
 var _heartbeatListenerAdded = false;
 
@@ -251,7 +252,7 @@ function refreshAuthUI(){
   var profileBtn=$('profile-btn');
   if(S.isLoggedIn){
     btn.textContent='Abmelden ('+S.loggedInName+')'; btn.className='logged-in';
-    if(profileBtn) profileBtn.style.display='block';
+    if(profileBtn) profileBtn.style.display='flex';
     $('vs-host-name').value=S.loggedInName; $('vs-join-name').value=S.loggedInName; $('qr-join-name-input').value=S.loggedInName;
   } else { btn.textContent='↪ Anmelden'; btn.className='logged-out'; if(profileBtn) profileBtn.style.display='none'; }
 }
@@ -364,6 +365,13 @@ function getActualLatLng(loc){return {lat:loc.lat,lng:loc.lng};}
 function calcPts(d){return Math.round(Math.max(0,MAX_PTS*Math.exp(-d/400)));}
 function fmtD(m){return m<1000?Math.round(m)+' m':(m/1000).toFixed(2)+' km';}
 function fmtN(n){return Number(n||0).toLocaleString('de');}
+function fmtDate(d){
+  if(!(d instanceof Date))d=new Date(d);
+  var ymd=function(dt){return dt.toLocaleDateString('sv',{timeZone:'Europe/Vienna'});};
+  var diff=Math.round((new Date(ymd(new Date()))-new Date(ymd(d)))/864e5);
+  if(diff===0)return'Heute';if(diff===1)return'Gestern';if(diff===2)return'Vorgestern';
+  return d.toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
 function hdg(a){return['N','NO','O','SO','S','SW','W','NW'][Math.round((((a%360)+360)%360)/45)%8];}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -1042,6 +1050,16 @@ async function loadLeaderboardData(){
       if(!playerBest[key]){playerBest[key]=r;playerAll[key]=[];}
       playerAll[key].push(r);if(r.score>playerBest[key].score)playerBest[key]=r;
     });
+    // Fetch real names for all players
+    var playerRealNames={};
+    try{
+      var uniqueNames=Object.keys(playerBest).map(function(k){return playerBest[k].name;});
+      var nameList=uniqueNames.map(function(n){return '"'+n+'"';}).join(',');
+      var playerInfoRows=await sbFetch('players?select=name,vorname,nachname&name=in.('+nameList+')');
+      if(playerInfoRows)playerInfoRows.forEach(function(p){
+        if(p.vorname)playerRealNames[p.name.toLowerCase()]=p.vorname+(p.nachname?' '+p.nachname:'');
+      });
+    }catch(e){}
     var players=Object.keys(playerBest).map(function(k){return playerBest[k];});
     if(S.lbSort==='date')players.sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);});
     else players.sort(function(a,b){return b.score-a.score;});
@@ -1051,12 +1069,27 @@ async function loadLeaderboardData(){
     players.forEach(function(r,i){
       var nameKey=r.name.toLowerCase(),allScores=playerAll[nameKey]||[];
       var rankLabel=(S.lbSort==='pts'&&i<3)?'<span class="lb-rank gold">'+medals[i]+'</span>':'<span class="lb-rank">'+(i+1)+'</span>';
-      var d=new Date(r.created_at),date=d.toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit',year:'numeric'}),timeStr=d.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
+      var d=new Date(r.created_at),date=fmtDate(d),timeStr=d.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
       var multiHint=allScores.length>1?' <span style="font-size:.55rem;color:var(--mist);">('+allScores.length+')</span>':'';
+      var realName=playerRealNames[nameKey]||'';
+      var nameAttr=realName?' data-realname="'+escHtml(realName)+'"':'';
       var rowEl=document.createElement('div');rowEl.className='lb-row';
       var profBtn='<button class="lb-profile-btn" onclick="event.stopPropagation();openProfile(\''+escHtml(r.name)+'\')">👤</button>';
-      rowEl.innerHTML=rankLabel+'<span class="lb-name">'+escHtml(r.name)+multiHint+'</span><span class="lb-score">'+fmtN(r.score)+'</span><span class="lb-date" data-time="'+timeStr+'">'+date+'</span>'+profBtn;
+      rowEl.innerHTML=rankLabel+'<span class="lb-name"'+nameAttr+'>'+escHtml(r.name)+multiHint+'</span><span class="lb-score">'+fmtN(r.score)+'</span><span class="lb-date" data-time="'+timeStr+'">'+date+'</span>'+profBtn;
+      if(realName){
+        (function(nameEl,spitz,hint,full){
+          nameEl.addEventListener('mouseenter',function(){nameEl.innerHTML=escHtml(full);nameEl.classList.add('lb-realname-shown');});
+          nameEl.addEventListener('mouseleave',function(){nameEl.innerHTML=spitz+hint;nameEl.classList.remove('lb-realname-shown');});
+        })(rowEl.querySelector('.lb-name'),escHtml(r.name),multiHint,realName);
+      }
       if(lbAdminMode){
+        var rn=r.name;
+        var renameBtn=document.createElement('button');renameBtn.className='lb-rename';renameBtn.textContent='✏️';
+        renameBtn.onclick=(function(n){return function(e){e.stopPropagation();openAdminEditPlayer(n);};})(rn);
+        rowEl.appendChild(renameBtn);
+        var addBtn=document.createElement('button');addBtn.className='lb-add-entry';addBtn.textContent='+';
+        addBtn.onclick=(function(n){return function(e){e.stopPropagation();openAdminAddEntry(n);};})(rn);
+        rowEl.appendChild(addBtn);
         var delBtn=document.createElement('button');delBtn.className='lb-del';delBtn.textContent='✕';delBtn.setAttribute('data-id',r.id);
         delBtn.onclick=function(e){e.stopPropagation();deleteLbEntry(this.getAttribute('data-id'),this.parentElement);};
         rowEl.appendChild(delBtn);
@@ -1078,7 +1111,7 @@ async function loadLeaderboardData(){
         });
         subList.appendChild(sortRow);renderSubScores(subList,allScores,curSubSort);
         rowEl.onclick=function(e){
-          if(e.target.classList.contains('lb-profile-btn')||e.target.classList.contains('lb-del'))return;
+          if(e.target.classList.contains('lb-profile-btn')||e.target.classList.contains('lb-del')||e.target.classList.contains('lb-rename')||e.target.classList.contains('lb-add-entry'))return;
           var isOpen=subList.classList.contains('open');
           subList.classList.toggle('open',!isOpen);lbExpandedNames[nameKey]=!isOpen;tone(isOpen?440:660,'sine',.06,.07);
         };
@@ -1097,7 +1130,7 @@ function renderSubScores(container,scores,sortMode){
   else sorted.sort(function(a,b){return b.score-a.score;});
   sorted.forEach(function(sc){
     var sd=new Date(sc.created_at);
-    var sdate=sd.toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit',year:'numeric'}),stime=sd.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
+    var sdate=fmtDate(sd),stime=sd.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
     var sub=document.createElement('div');sub.className='lb-sub-score';
     sub.innerHTML='<span>'+sdate+' '+stime+'</span><span>'+fmtN(sc.score)+'</span><button class="lb-profile-btn" onclick="event.stopPropagation();openProfile(\''+escHtml(sc.name||'')+'\')">👤</button>';
     if(lbAdminMode){
@@ -1111,22 +1144,98 @@ function renderSubScores(container,scores,sortMode){
 
 async function deleteLbEntry(id,wrap,isSub){
   try{
-    await sbFetch('scores?id=eq.'+id,'DELETE');tone(300,'sawtooth',.1,.06);
+    var res=await sbFetch('scores?id=eq.'+id,'DELETE');
+    if(!res||!res.length){alert('Löschen fehlgeschlagen (keine Berechtigung?). DELETE-Richtlinie (RLS) in Supabase prüfen.');return;}
+    tone(300,'sawtooth',.1,.06);
     if(isSub){if(wrap)wrap.remove();loadLeaderboardData();}else{if(wrap)wrap.remove();}
   }catch(e){alert('Fehler beim Löschen: '+(e&&e.message?e.message:JSON.stringify(e)));}
+}
+
+var _adminEditTarget='';
+function openAdminEditPlayer(name){
+  _adminEditTarget=name;
+  $('admin-edit-player-label').textContent='Bearbeite: '+name;
+  $('admin-edit-spitzname').value=name;
+  $('admin-edit-vorname').value='';
+  $('admin-edit-nachname').value='';
+  $('admin-edit-error').textContent='';
+  sbFetch('players?name=ilike.'+encodeURIComponent(name)+'&select=vorname,nachname').then(function(r){
+    if(r&&r.length){$('admin-edit-vorname').value=r[0].vorname||'';$('admin-edit-nachname').value=r[0].nachname||'';}
+  }).catch(function(){});
+  openModal('admin-edit-player-modal');
+}
+async function submitAdminEditPlayer(){
+  var oldName=_adminEditTarget;
+  var newName=($('admin-edit-spitzname').value||'').trim();
+  var vorname=($('admin-edit-vorname').value||'').trim();
+  var nachname=($('admin-edit-nachname').value||'').trim();
+  var errEl=$('admin-edit-error');errEl.textContent='';
+  if(!newName){errEl.textContent='Spitzname darf nicht leer sein.';return;}
+  if(!NAME_REGEX.test(newName)){errEl.textContent='Ungültiger Spitzname (nur Buchstaben, Zahlen, . - _).';return;}
+  var renamed=newName!==oldName;
+  try{
+    // 1) Umbenennen zuerst (der wichtigste Teil) — über alle Tabellen
+    if(renamed){
+      var dup=await sbFetch('players?name=ilike.'+encodeURIComponent(newName)+'&select=name');
+      if(dup&&dup.some(function(r){return r.name.toLowerCase()!==oldName.toLowerCase();})){errEl.textContent='Name "'+newName+'" ist schon vergeben.';return;}
+      var res=await sbFetch('players?name=ilike.'+encodeURIComponent(oldName),'PATCH',{name:newName});
+      if(!res||!res.length){errEl.textContent='Umbenennen fehlgeschlagen (keine Berechtigung?). SQL-Richtlinien (RLS) prüfen.';return;}
+      await sbFetch('scores?name=ilike.'+encodeURIComponent(oldName),'PATCH',{name:newName}).catch(function(){});
+      await sbFetch('daily_scores?name=ilike.'+encodeURIComponent(oldName),'PATCH',{name:newName}).catch(function(){});
+      await sbFetch('achievements?player_name=ilike.'+encodeURIComponent(oldName),'PATCH',{player_name:newName}).catch(function(){});
+      if(S.loggedInName&&S.loggedInName.toLowerCase()===oldName.toLowerCase()){
+        S.loggedInName=newName;saveSession(newName,S.loggedInPwHash);
+        var btn=$('auth-btn');if(btn)btn.textContent='Abmelden ('+newName+')';
+      }
+    }
+    // 2) Vor-/Nachname separat (bricht nicht, falls Spalten fehlen)
+    try{
+      await sbFetch('players?name=ilike.'+encodeURIComponent(newName),'PATCH',{vorname:vorname||null,nachname:nachname||null});
+    }catch(_){}
+    tone(660,'sine',.1,.08);closeModal('admin-edit-player-modal');
+    loadLeaderboardData();
+    if($('profile-screen')&&$('profile-screen').classList.contains('active'))openProfile(newName);
+  }catch(e){errEl.textContent='Fehler: '+(e&&e.message?e.message:JSON.stringify(e));}
+}
+
+var _adminAddPlayer='';
+function openAdminAddEntry(playerName){
+  _adminAddPlayer=playerName;
+  $('admin-add-entry-player').textContent='Für: '+playerName;
+  $('admin-add-score').value='';
+  var now=new Date();
+  $('admin-add-date').value=now.toISOString().split('T')[0];
+  $('admin-add-time').value=now.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'}).replace('.',':');
+  $('admin-add-error').textContent='';
+  openModal('admin-add-entry-modal');
+}
+async function submitAdminAddEntry(){
+  var score=parseInt($('admin-add-score').value);
+  var date=$('admin-add-date').value,time=$('admin-add-time').value;
+  if(!_adminAddPlayer){$('admin-add-error').textContent='Kein Spieler.';return;}
+  if(isNaN(score)||score<0||score>25000){$('admin-add-error').textContent='Punkte müssen 0–25000 sein.';return;}
+  if(!date||!time){$('admin-add-error').textContent='Datum und Uhrzeit angeben.';return;}
+  var created_at=date+'T'+time+':00+02:00';
+  try{
+    await sbFetch('scores','POST',{name:_adminAddPlayer,score:score,created_at:created_at});
+    closeModal('admin-add-entry-modal');loadLeaderboardData();tone(660,'sine',.1,.08);
+  }catch(e){$('admin-add-error').textContent='Fehler: '+(e&&e.message?e.message:JSON.stringify(e));}
 }
 
 // ── Login ──
 var loginMode='existing',loginNameCheckTimer=null;
 function openLoginModal(){
-  loginMode='existing';$('login-toggle-no').classList.remove('active');$('login-toggle-yes').classList.add('active');
+  loginMode='new';$('login-toggle-no').classList.add('active');$('login-toggle-yes').classList.remove('active');
   $('login-name').value='';$('login-pw').value='';$('login-error').textContent='';$('login-name-avail').textContent='';
-  $('login-pw-hint').textContent='Dein bisheriges Passwort.';openModal('login-modal');setTimeout(function(){$('login-name').focus();},200);
+  if($('login-vorname'))$('login-vorname').value='';if($('login-nachname'))$('login-nachname').value='';
+  if($('login-realname-fields'))$('login-realname-fields').style.display='flex';
+  $('login-pw-hint').textContent='Erstellt deinen Account. Merke dir das Passwort!';openModal('login-modal');setTimeout(function(){$('login-name').focus();},200);
 }
 function setLoginMode(mode){
   loginMode=mode;$('login-toggle-no').classList.toggle('active',mode==='new');$('login-toggle-yes').classList.toggle('active',mode==='existing');
   $('login-name-avail').textContent='';$('login-error').textContent='';
   $('login-pw-hint').textContent=mode==='new'?'Erstellt deinen Account. Merke dir das Passwort!':'Dein bisheriges Passwort.';
+  if($('login-realname-fields'))$('login-realname-fields').style.display=mode==='new'?'flex':'none';
 }
 
 $('login-name')&&$('login-name').addEventListener('input',function(){
@@ -1151,15 +1260,45 @@ async function submitLogin(){
     var inputHash=await hashString(pw);
     var existing=await sbFetch('players?name=ilike.'+encodeURIComponent(name)+'&select=id,name,pw_hash');
     if(loginMode==='new'){
-      if(existing&&existing.length){$('login-error').textContent='Name vergeben.';$('login-submit-btn').disabled=false;return;}
-      await sbFetch('players','POST',{name:name,pw_hash:inputHash});saveSession(name,inputHash);refreshAuthUI();
+      var vorname=($('login-vorname')&&$('login-vorname').value.trim())||'';
+      var nachname=($('login-nachname')&&$('login-nachname').value.trim())||'';
+      if(!vorname){$('login-error').textContent='Bitte Vorname eingeben.';$('login-submit-btn').disabled=false;return;}
+      if(existing&&existing.length){
+        if(existing[0].pw_hash===inputHash){saveSession(existing[0].name,inputHash);refreshAuthUI();}
+        else{$('login-error').textContent='Name vergeben.';$('login-submit-btn').disabled=false;return;}
+      } else {
+        await sbFetch('players','POST',{name:name,pw_hash:inputHash,vorname:vorname,nachname:nachname||null});saveSession(name,inputHash);refreshAuthUI();
+      }
     } else {
       if(!existing||!existing.length){$('login-error').textContent='Account nicht gefunden.';$('login-submit-btn').disabled=false;return;}
       if(existing[0].pw_hash!==inputHash){$('login-error').textContent='Falsches Passwort.';$('login-submit-btn').disabled=false;return;}
       saveSession(existing[0].name,inputHash);refreshAuthUI();
     }
     closeModal('login-modal');tone(660,'sine',.12,.08);tone(880,'sine',.1,.06,0,.08);
+    checkNamePromptNeeded();
   }catch(e){$('login-error').textContent='Fehler: '+(e&&e.message?e.message:'Unbekannt');$('login-submit-btn').disabled=false;}
+}
+
+async function checkNamePromptNeeded(){
+  if(!S.isLoggedIn)return;
+  try{
+    var rows=await sbFetch('players?name=ilike.'+encodeURIComponent(S.loggedInName)+'&select=vorname');
+    if(rows&&rows.length&&!rows[0].vorname){
+      $('name-prompt-modal').classList.add('show');
+    }
+  }catch(e){}
+}
+
+async function submitNamePrompt(){
+  var vorname=($('name-prompt-vorname')&&$('name-prompt-vorname').value.trim())||'';
+  var nachname=($('name-prompt-nachname')&&$('name-prompt-nachname').value.trim())||'';
+  if(!vorname){$('name-prompt-error').textContent='Bitte Vorname eingeben.';return;}
+  $('name-prompt-submit-btn').disabled=true;
+  try{
+    await sbFetch('players?name=ilike.'+encodeURIComponent(S.loggedInName),'PATCH',{vorname:vorname,nachname:nachname||null});
+    $('name-prompt-modal').classList.remove('show');
+    tone(660,'sine',.12,.08);
+  }catch(e){$('name-prompt-error').textContent='Fehler beim Speichern.';$('name-prompt-submit-btn').disabled=false;}
 }
 
 // ── Score speichern ──
@@ -1294,7 +1433,7 @@ async function loadDailyBoard(){
     rows.forEach(function(r,i){
       var div=document.createElement('div');div.className='lb-row';
       var rank=i<3?'<span class="lb-rank gold">'+medals[i]+'</span>':'<span class="lb-rank">'+(i+1)+'</span>';
-      var d=new Date(r.created_at),date=d.toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit',year:'numeric'}),time=d.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
+      var d=new Date(r.created_at),date=fmtDate(d),time=d.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
       div.innerHTML=rank+'<span class="lb-name">'+escHtml(r.name)+'</span><span class="lb-score">'+fmtN(r.score)+'</span><span class="lb-date" data-time="'+time+'">'+date+'</span>';
       boardEl.appendChild(div);setTimeout(function(el){return function(){el.classList.add('in');};}(div),i*45);
     });
@@ -1673,7 +1812,8 @@ document.addEventListener('keydown',function(e){
     else if($('result-screen').classList.contains('active')){var nextBtn=$('next-btn');if(nextBtn&&!nextBtn.disabled){resumeAC();voteNext();}}
   }
   if(e.key==='Escape'){
-    ['lb-modal','save-modal','admin-modal','vs-modal','vs-wait-modal','login-modal','changelog-modal','changelog-editor-modal'].forEach(function(id){if($(id)&&$(id).classList.contains('open'))closeModal(id);});
+    ['lb-modal','save-modal','admin-modal','vs-modal','vs-wait-modal','changelog-modal','changelog-editor-modal'].forEach(function(id){if($(id)&&$(id).classList.contains('open'))closeModal(id);});
+    if(S.isLoggedIn&&$('login-modal')&&$('login-modal').classList.contains('open'))closeModal('login-modal');
     closeLogoutConfirm();
   }
   if((e.key==='m'||e.key==='M')&&$('game-screen').classList.contains('active')&&e.target.tagName!=='INPUT')cycleVolume();
@@ -1721,6 +1861,7 @@ window.addEventListener('load',function(){
   setTimeout(function(){$('start-main').classList.add('in');},300);
   setTimeout(function(){renderStreakDisplay('streak-display-start');},400);
   setDailyInfo();getOrCreateDeviceId();refreshAuthUI();checkDeepLink();cleanupStaleRooms();loadDailyBoard();loadDailyChampions();updateDailyPlayAvailability();startDailyTimers();
+  setTimeout(checkNamePromptNeeded,1500);
 });
 
 // ── Changelog ──
@@ -2074,10 +2215,15 @@ async function openHeatmap(){
 
 // ── PROFILE ──
 async function openProfile(playerName){
+  if($('lb-modal')&&$('lb-modal').classList.contains('open'))closeModal('lb-modal');
   var name=playerName||(S.isLoggedIn?S.loggedInName:null);
   if(!name)return;
   show('profile-screen');
-  $('profile-name-display').textContent=name;
+  var _pnd=$('profile-name-display');
+  _pnd.textContent=name;
+  _pnd.setAttribute('data-spitzname',name);
+  _pnd.removeAttribute('data-realname');
+  _pnd.style.color='';
   // Entwickler-Badge für Fabio
   var headerEl=document.getElementById('profile-header-info');
   var devBadgeId='dev-badge-fabio';
@@ -2112,6 +2258,13 @@ async function openProfile(playerName){
       var since=playerRow[0].created_at?new Date(playerRow[0].created_at).toLocaleDateString('de-AT',{day:'2-digit',month:'long',year:'numeric'}):'';
       $('profile-since').textContent=since?'Dabei seit '+since:'';
     }
+    try{
+      var _pinfo=await sbFetch('players?name=ilike.'+encodeURIComponent(name)+'&select=vorname,nachname');
+      if(_pinfo&&_pinfo.length&&_pinfo[0].vorname){
+        var _rn=_pinfo[0].vorname+(_pinfo[0].nachname?' '+_pinfo[0].nachname:'');
+        $('profile-name-display').setAttribute('data-realname',_rn);
+      }
+    }catch(_){}
     // achievements
     var achRows=await sbFetch('achievements?player_name=ilike.'+encodeURIComponent(name)+'&select=achievement_key,unlocked_at');
     var haveKeys=new Set((achRows||[]).map(function(r){return r.achievement_key;}));
@@ -2126,7 +2279,7 @@ async function openProfile(playerName){
     // recent scores
     var recentHtml=(scores||[]).slice(0,10).map(function(r){
       var d=new Date(r.created_at);
-      return '<div class="profile-score-row"><span>'+d.toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit',year:'numeric'})+'</span><span class="gold">'+fmtN(r.score)+' Pkt.</span></div>';
+      return '<div class="profile-score-row"><span>'+fmtDate(d)+'</span><span class="gold">'+fmtN(r.score)+' Pkt.</span></div>';
     }).join('');
     $('profile-recent-scores').innerHTML=recentHtml||'<div style="font-size:.65rem;color:var(--mist)">Noch keine Spiele.</div>';
   }catch(e){
@@ -2186,3 +2339,21 @@ function afterGuessExtras(locId){
     }
   },600);
 }
+
+// ── Profile name hover (Spitzname ↔ Vorname Nachname) ──
+function _wireProfileNameHover(){
+  var el=document.getElementById('profile-name-display');
+  if(!el||el._hoverWired)return;
+  el._hoverWired=true;
+  el.addEventListener('mouseenter',function(){
+    var rn=this.getAttribute('data-realname');
+    if(!rn)return;
+    this.textContent=rn;this.style.color='var(--gold)';
+  });
+  el.addEventListener('mouseleave',function(){
+    if(!this.getAttribute('data-realname'))return;
+    this.textContent=this.getAttribute('data-spitzname')||'';this.style.color='';
+  });
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_wireProfileNameHover);
+else _wireProfileNameHover();
