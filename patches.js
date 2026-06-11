@@ -18,7 +18,7 @@
 
     // genauigkeit
     { key:'close_call', icon:'🎯', title:'Haarscharf!',        desc:'Unter 10 Meter entfernt geraten' },
-    { key:'bullseye',   icon:'💥', title:'Volltreffer!',       desc:'Unter 2 Meter — du stehst quasi dort' },
+    { key:'bullseye',   icon:'💥', title:'Volltreffer!',       desc:'Unter 2 Meter, du stehst quasi dort' },
 
     // hitzewelle
     { key:'survival_5', icon:'🌡️', title:'Halbzeit geschafft', desc:'5 Hitzewelle-Runden bestanden' },
