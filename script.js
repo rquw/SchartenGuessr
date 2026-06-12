@@ -1910,7 +1910,7 @@ async function qrJoinSubmit(){
 }
 
 function startVsGame(locIds){
-  resetScoreSavedUI();S.mode='vs';S.roundsTotal=5;resetBaseState();S.isVs=true;S.vsTheirScores=[];S.vsMyScores=[];S.skippedLocations=new Set();
+  resetScoreSavedUI();S.mode='vs';S.roundsTotal=5;resetBaseState();S.isVs=true;S._vsCounted=false;S.vsTheirScores=[];S.vsMyScores=[];S.skippedLocations=new Set();
   S.locations=locIds.map(function(id){return LOCATIONS.find(function(l){return l.id===id;});}).filter(Boolean);
   $('vs-badge').style.display='block';$('vs-badge').textContent='VS '+S.vsTheirName;
   $('vs-strip').style.display='block';$('vs-strip-you').textContent=S.vsMyName;$('vs-strip-them').textContent=S.vsTheirName;$('round-total').textContent='5';
@@ -2179,6 +2179,8 @@ function updateVsStrip(){
 
 function showVsFinalResult(){
   var my=S.score,their=(S.vsTheirScores||[]).reduce(function(a,b){return a+b;},0);
+  // 1v1-Sieg lokal mitzählen (fürs Profil), pro Spiel nur einmal
+  if(!S._vsCounted){S._vsCounted=true;if(my>their){try{var _w=parseInt(localStorage.getItem('tg_vs_wins')||'0',10)||0;localStorage.setItem('tg_vs_wins',_w+1);}catch(e){}}}
   var box=$('vs-result-box'); box.classList.add('show');
   var wt=$('vs-winner-text');
   if(my>their){wt.textContent='Du gewinnst! 🏆';wt.className='vs-winner win';}

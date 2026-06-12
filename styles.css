@@ -1014,8 +1014,8 @@ body::before{
 .profile-since{font-size:.6rem;color:var(--mist);letter-spacing:.1em;margin-top:.2rem}
 .profile-edit-btn{margin-top:.5rem;font-size:.62rem;letter-spacing:.04em;color:var(--gold);background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);border-radius:7px;padding:.32rem .7rem;cursor:pointer;transition:background .15s,border-color .15s}
 .profile-edit-btn:hover{background:rgba(201,168,76,.2);border-color:rgba(201,168,76,.7)}
-.profile-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem}
-@media(max-width:500px){.profile-stats-grid{grid-template-columns:repeat(2,1fr)}}
+.profile-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:.6rem}
+@media(max-width:500px){.profile-stats-grid{grid-template-columns:repeat(3,1fr)}}
 .profile-stat{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:.8rem .5rem;text-align:center}
 .profile-stat-val{font-size:1.2rem;font-weight:500;color:var(--cream);line-height:1}
 .profile-stat-val.gold{color:var(--gold)}
@@ -1079,6 +1079,29 @@ body::before{
   border:1px solid rgba(80,150,255,.4);border-radius:999px;
   padding:.15rem .65rem;margin-top:.25rem;
 }
+
+/* ── PROFIL: Zurück-Button oben + Badge-Reihe ── */
+.profile-back-top{
+  position:sticky;top:0;align-self:flex-start;z-index:6;
+  font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.08em;
+  padding:.45rem .9rem;border-radius:20px;cursor:pointer;
+  border:1.5px solid rgba(255,255,255,.18);background:rgba(0,0,0,.62);
+  color:rgba(245,240,232,.78);backdrop-filter:blur(6px);
+  transition:color .15s,border-color .15s,background .15s,transform .1s;
+}
+.profile-back-top:hover{color:var(--cream);border-color:var(--gold);background:rgba(0,0,0,.82);transform:translateY(-1px)}
+.profile-badges{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.4rem}
+.profile-badge{
+  display:inline-flex;align-items:center;gap:.3rem;
+  font-size:.56rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  border-radius:999px;padding:.16rem .6rem;white-space:nowrap;
+  color:var(--gold-light);background:rgba(201,168,76,.13);border:1px solid rgba(201,168,76,.42);
+}
+.profile-badge.badge-gold1{color:#ffe39a;background:rgba(255,203,74,.16);border-color:rgba(255,203,74,.55)}
+.profile-badge.badge-gold2{color:#e6e6ea;background:rgba(200,200,210,.14);border-color:rgba(200,200,210,.5)}
+.profile-badge.badge-gold3{color:#f0b890;background:rgba(205,127,80,.15);border-color:rgba(205,127,80,.5)}
+.profile-badge.badge-champ{color:#ffd66b;background:rgba(201,168,76,.18);border-color:rgba(201,168,76,.6)}
+.profile-badge.badge-allach{color:#b9f0c4;background:rgba(80,200,120,.13);border-color:rgba(80,200,120,.45)}
 
 /* ── TOP-BAR SCHWIERIGKEITS-BADGE ── */
 #top-bar-diff{

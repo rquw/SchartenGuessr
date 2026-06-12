@@ -676,6 +676,10 @@
         <div class="profile-stat-label">Ø Punkte</div>
       </div>
       <div class="profile-stat">
+        <div class="profile-stat-val" id="ps-total">—</div>
+        <div class="profile-stat-label">Gesamtpunkte</div>
+      </div>
+      <div class="profile-stat">
         <div class="profile-stat-val ember" id="ps-streak">—</div>
         <div class="profile-stat-label">Streak 🔥</div>
       </div>
@@ -683,14 +687,23 @@
         <div class="profile-stat-val" id="ps-dailies">—</div>
         <div class="profile-stat-label">Dailies gespielt</div>
       </div>
+      <div class="profile-stat">
+        <div class="profile-stat-val gold" id="ps-ach">—</div>
+        <div class="profile-stat-label">Erfolge</div>
+      </div>
+      <div class="profile-stat">
+        <div class="profile-stat-val" id="ps-rank">—</div>
+        <div class="profile-stat-label">Bestenliste</div>
+      </div>
+      <div class="profile-stat" id="ps-vs-cell" style="display:none">
+        <div class="profile-stat-val gold" id="ps-vs">—</div>
+        <div class="profile-stat-label">1v1 Siege</div>
+      </div>
     </div>
     <div class="profile-section-title">Erfolge</div>
     <div id="profile-achievements"></div>
     <div class="profile-section-title" style="margin-top:.5rem">Letzte Spiele</div>
     <div id="profile-recent-scores"></div>
-    <div style="display:flex;justify-content:center;margin-top:1.5rem">
-      <button class="big-btn" onclick="goHome()" style="padding:.8rem 2rem">← Zurück</button>
-    </div>
   </div>
 </div>
 </body>
