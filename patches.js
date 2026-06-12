@@ -1,4 +1,4 @@
-// patches.js — wird nach script.js geladen
+// patches.js: wird nach script.js geladen
 
 // mehr achievements mit niedrigerer schwelle
 (function() {
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // submitGuess patchen: ≤2m easter egg + afterGuessExtras de-dupe
-  // script.js ruft afterGuessExtras() direkt — wir verhindern doppelte DB-writes
+  // script.js ruft afterGuessExtras() direkt, hier doppelte DB-Writes verhindern
   // indem wir afterGuessExtras überschreiben und nur _patchedAfterGuessExtras nutzen
   window.afterGuessExtras = function(locId) {
     _patchedAfterGuessExtras(locId);
@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
 
-      // Vorname/Nachname für Hover (isoliert — bricht nicht, wenn Spalten fehlen)
+      // Vorname/Nachname für Hover, isoliert damit fehlende Spalten nicht crashen
       try {
         var _pinfo = await sbFetch('players?name=ilike.' + encodeURIComponent(name) + '&select=vorname,nachname');
         if (_pinfo && _pinfo.length && _pinfo[0].vorname) {
@@ -252,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
 
-  // leaderboard-namen NICHT mehr anklickbar — nur 👤-Button öffnet Profil
+  // Leaderboard-Namen nicht mehr anklickbar, nur der 👤-Button öffnet das Profil
   function wireProfileClicks(listId) { /* deaktiviert */ }
 
   var _origLoadLb = window.loadLeaderboardData;
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // minDist tracken für achievements (bullseye/close_call)
-  // submitGuess ist schon oben gewrapped — wir ergänzen nur den minDist-tracker
+  // submitGuess ist oben schon gewrapped, hier nur der minDist-Tracker
   var _origSGWithDist = window.submitGuess;
   window.submitGuess = function() {
     if (S.guessLatLng && S.current) {

@@ -14,22 +14,39 @@
 var SB_URL = window._cfg.u;
 var SB_KEY = window._cfg.k;
 
+// VS-Log fürs Debugging: window.vsLogBuf, mit S.vsDebug=true auch in der Konsole
+var _vsLogBuf = [];
+function vsLog(ev) {
+  try {
+    var e = { t: new Date().toISOString().slice(11, 23), ev: ev, round: (typeof S !== 'undefined' ? S.round : '-'), room: (typeof S !== 'undefined' ? S.vsRoom : null) };
+    _vsLogBuf.push(e); if (_vsLogBuf.length > 200) _vsLogBuf.shift();
+    window.vsLogBuf = _vsLogBuf;
+    if (typeof S !== 'undefined' && S.vsDebug) console.debug('[VS]', e.t, ev, '(r' + e.round + ')');
+  } catch (_) {}
+}
+
 async function sbFetch(path, method, body) {
   method = method || 'GET';
-  var r = await fetch(SB_URL + '/rest/v1/' + path, {
-    method: method,
-    headers: {
-      'apikey': SB_KEY,
-      'Authorization': 'Bearer ' + SB_KEY,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
-    },
-    body: body ? JSON.stringify(body) : undefined
-  });
-  var t = await r.text();
-  var parsed = t ? JSON.parse(t) : null;
-  if (!r.ok) { throw parsed || new Error('Request failed'); }
-  return parsed;
+  // Timeout, damit eine hängende Anfrage den Poll nicht blockiert
+  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var to = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (_) {} }, 8000) : null;
+  try {
+    var r = await fetch(SB_URL + '/rest/v1/' + path, {
+      method: method,
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl ? ctrl.signal : undefined
+    });
+    var t = await r.text();
+    var parsed = t ? JSON.parse(t) : null;
+    if (!r.ok) { throw parsed || new Error('Request failed'); }
+    return parsed;
+  } finally { if (to) clearTimeout(to); }
 }
 
 // ── Audio ──
@@ -138,7 +155,7 @@ var MAX_PTS=5000, CENTER=[47.947,14.358], NEXT_AUTO_SECS=20;
 var SCORES_TABLE='scores', DAILY_TABLE='daily_scores';
 var NAME_REGEX=/^[A-Za-z0-9.\-_]+$/;
 var _heartbeatListenerAdded = false;
-// Touch-Gerät? → Hover-Inhalte werden per Tippen erreichbar gemacht
+// Touch: Hover-Inhalte per Tippen erreichbar machen
 var IS_TOUCH = (('ontouchstart' in window) || (navigator.maxTouchPoints>0));
 try{ if(IS_TOUCH && document.body) document.body.classList.add('is-touch');
   else if(IS_TOUCH) document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('is-touch');}); }catch(e){}
@@ -557,7 +574,7 @@ function updatePanoZoom(){
   if(S.panoVOff>0)S.panoVOff=0; else if(S.panoVOff<minOff)S.panoVOff=minOff;
   strip.style.marginTop=(ch?S.panoVOff:0)+'px';
 }
-// Zoom mit Verankerung an einem Punkt (Mausposition) — der Punkt unter dem Cursor bleibt stehen
+// Zoom um die Mausposition, der Punkt unterm Cursor bleibt stehen
 function zoomPanoAtPoint(newZoom,clientX,clientY){
   var strip=$('pano-strip'),el=$('pano-container'); if(!strip||!el)return;
   var rect=el.getBoundingClientRect();
@@ -625,12 +642,12 @@ function initPanoDrag(){
   // Wheel/Trackpad: seitwärts (2 Finger) = drehen, vertikal/Pinch = zoomen
   el.addEventListener('wheel',function(e){
     resumeAC();
-    if(e.ctrlKey){ // Trackpad-Pinch / Browser-Zoom-Geste → an Cursor zoomen
+    if(e.ctrlKey){ // Trackpad-Pinch: an Cursor zoomen
       zoomPanoAtPoint(S.panoZoom*(1-e.deltaY*0.012),e.clientX,e.clientY); e.preventDefault(); return;
     }
     if(Math.abs(e.deltaX)>Math.abs(e.deltaY)){ rotatePanoByPixels(e.deltaX); e.preventDefault(); return; }
     if(e.shiftKey){ rotatePanoByPixels(e.deltaY); e.preventDefault(); return; }
-    // vertikal = zoomen (Maus-Rad) → an Cursor zoomen
+    // Mausrad vertikal: an Cursor zoomen
     zoomPanoAtPoint(S.panoZoom*(1-e.deltaY*0.0015),e.clientX,e.clientY); e.preventDefault();
   },{passive:false});
   el.style.cursor='grab';
@@ -734,7 +751,7 @@ function startSurvival(){
   showSurvivalExplain();
 }
 
-// Erklär-Overlay vor der ersten Runde — Regeln + satter Auftakt
+// Erklär-Overlay vor der ersten Runde
 function showSurvivalExplain(){
   var ov=$('survival-explain-overlay'); if(!ov){beginSurvivalRounds();return;}
   // Alle Texte kommen aus text.js (T)
@@ -905,6 +922,7 @@ function loadRound(){
   S.current=S.locations[S.round];
   $('round-num').textContent=S.round+1; $('score-display').textContent=fmtN(S.score);
   hideSkipPanoBtn();
+  var _og=$('vs-opponent-guessed');if(_og){_og.classList.remove('show');if(_og._t)clearTimeout(_og._t);}
   // difficulty badge sofort auf 'Unbestimmt' setzen, dann nachladen
   var diffBadgeEl=document.getElementById('top-bar-diff');
   if(diffBadgeEl){diffBadgeEl.textContent='Schwierigkeit: Unbestimmt';diffBadgeEl.style.display='';}
@@ -953,7 +971,7 @@ function submitGuess(){
       survivalThresholdEl.classList.add('show');
     }
   }
-  if(S.isVs){pushVsScore(pts,S.guessLatLng);setTimeout(function(){showVsWaitOverlay(true);},1000);$('vs-bottom-wait').classList.add('show');startSpectatePoll();startSubmitCountdown();}
+  if(S.isVs){vsLog('eigener Tipp abgegeben ('+fmtN(pts)+' Pkt.) → warte auf Gegner');pushVsScore(pts,S.guessLatLng);setTimeout(function(){showVsWaitOverlay(true);},1000);$('vs-bottom-wait').classList.add('show');startSpectatePoll();startSubmitCountdown();}
   if(S.mode==='survival'){
     showSurvivalScoreReveal(pts,getSurvivalThreshold(S.round),function(){
       show('result-screen'); initResultMap(loc,S.guessLatLng);
@@ -996,6 +1014,11 @@ function initResultMap(loc,guess){
 }
 
 function nextRound(){
+  // nextRound kann mehrfach fast gleichzeitig kommen, doppelte Aufrufe verwerfen
+  var _now=Date.now();
+  if(_now-(S._lastNextRoundAt||0)<1200)return;
+  S._lastNextRoundAt=_now;
+  vsLog('nextRound → Runde '+(S.round+2)+'/'+S.roundsTotal);
   sfx.next(); clearNextVoteTimers(); hideVsWaitOverlay(); stopSpectatePoll();
   $('vs-bottom-wait').classList.remove('show');
   // Inline-Difficulty-Rating für nächste Runde zurücksetzen
@@ -1077,7 +1100,7 @@ function playRattle(dur,from,to){
   var n=Math.max(8,Math.round(dur/0.026));
   for(var i=0;i<n;i++){
     var p=i/n;
-    // sauberes mechanisches "drrr" — kurze Klicks, steigende Tonhöhe
+    // mechanisches "drrr": kurze Klicks, steigende Tonhöhe
     tone(340+p*240+(Math.random()*30-15),'square',0.015,0.04*(0.55+0.45*(1-p)),0,i*(dur/n));
   }
 }
@@ -1121,7 +1144,7 @@ async function showRankPanelAndCelebrate(){
   var rows;
   try{ rows=await sbFetch('scores?select=name,score&order=score.desc&limit=500'); }
   catch(e){ rows=null; }
-  // Lauf jetzt speichern (Stand wurde oben bereits erfasst → kein Doppelzählen)
+  // Lauf speichern, Stand wurde oben schon erfasst
   if(!S.hasSavedThisRun){ S.pendingSaveTarget='global'; autoSaveLoggedInUser(); }
   if(!rows){ return; }
 
@@ -1156,7 +1179,7 @@ async function showRankPanelAndCelebrate(){
   rowsEl.appendChild(meSlot);
   belowSlots.forEach(function(s){rowsEl.appendChild(s);});
 
-  // Panel einblenden (setTimeout statt rAF → läuft auch zuverlässig wenn Tab kurz inaktiv)
+  // Panel einblenden, setTimeout läuft auch bei inaktivem Tab
   setTimeout(function(){panel.classList.add('show');},30);
 
   var doOvertake=isNewHs&&overtaken>0&&belowSlots.length>0;
@@ -1438,7 +1461,7 @@ async function submitAdminEditPlayer(){
   if(!NAME_REGEX.test(newName)){errEl.textContent='Ungültiger Spitzname (nur Buchstaben, Zahlen, . - _).';return;}
   var renamed=newName!==oldName;
   try{
-    // 1) Umbenennen zuerst (der wichtigste Teil) — über alle Tabellen
+    // 1) Umbenennen über alle Tabellen
     if(renamed){
       var dup=await sbFetch('players?name=ilike.'+encodeURIComponent(newName)+'&select=name');
       if(dup&&dup.some(function(r){return r.name.toLowerCase()!==oldName.toLowerCase();})){errEl.textContent='Name "'+newName+'" ist schon vergeben.';return;}
@@ -1598,14 +1621,14 @@ async function saveScore(){
 }
 
 // Daily-Score speichern: erst RPC versuchen, bei Fehler direkter Insert als Fallback.
-// (Die RPC kann je nach DB einen Typ-Bug haben — date_key text vs date — dann greift der Fallback.)
+// RPC kann je nach DB einen date_key-Typbug haben, dann Fallback
 async function submitDailyScore(name){
   var deviceId=getOrCreateDeviceId();
   try{
     var res=await sbFetch('rpc/submit_daily_score','POST',{p_name:name,p_score:S.score,p_date_key:S.dailyKey,p_device_id:deviceId});
     if(res&&res.ok)return {ok:true};
     if(res&&res.error)return {ok:false,error:res.error};
-    // RPC lieferte kein ok ohne bekannten Fehler → Fallback
+    // RPC ohne ok, also Fallback
   }catch(e){ /* RPC kaputt (z.B. date-cast bug) → Fallback */ }
   try{
     await sbFetch('daily_scores','POST',{name:name,score:S.score,date_key:S.dailyKey,device_id:deviceId,created_at:new Date().toISOString()});
@@ -1891,6 +1914,7 @@ function startVsGame(locIds){
   S.locations=locIds.map(function(id){return LOCATIONS.find(function(l){return l.id===id;});}).filter(Boolean);
   $('vs-badge').style.display='block';$('vs-badge').textContent='VS '+S.vsTheirName;
   $('vs-strip').style.display='block';$('vs-strip-you').textContent=S.vsMyName;$('vs-strip-them').textContent=S.vsTheirName;$('round-total').textContent='5';
+  vsLog('VS-Spiel gestartet (Host='+S.vsIsHost+', Gegner='+S.vsTheirName+')');
   sfx.start();show('game-screen');var _hb=$('back-to-home-btn');if(_hb)_hb.style.display='none';initPanoDrag();loadRound();startVsPoll();startHeartbeat();
 }
 
@@ -1920,6 +1944,7 @@ function startVsPoll(){
         if(!S._leftGraceTimer){S._leftGraceTimer=setTimeout(function(){S._leftGraceTimer=null;if(!S.vsLeftShown){S.vsLeftShown=true;showVsLeftMessage(S.vsTheirName);}},6000);}
       } else if(r[theirOnlineKey]){if(S._leftGraceTimer){clearTimeout(S._leftGraceTimer);S._leftGraceTimer=null;}hideDcNotice();}
       S.vsTheirScores=(S.vsIsHost?r.guest_scores:r.host_scores)||[];updateVsStrip();
+      maybeShowOpponentGuessedHint();
       var nv=r.next_votes||0,pav=r.play_again_votes||0;
       if(nv!==S.nextVotes){S.nextVotes=nv;updateNextVoteUI();}
       if(pav!==S.playAgainVotes){S.playAgainVotes=pav;updatePlayAgainVoteUI();}
@@ -1932,6 +1957,7 @@ function startVsPoll(){
 }
 
 function showVsLeftMessage(name){
+  vsLog('Gegner hat verlassen ('+name+')');
   if(S.vsPollInterval){clearInterval(S.vsPollInterval);S.vsPollInterval=null;}
   stopSpectatePoll();clearNextVoteTimers();
   $('vs-left-title').textContent=name+' hat das Spiel verlassen.';$('vs-left-sub').textContent='Das Spiel wurde beendet.';$('vs-left-msg').classList.add('show');
@@ -1961,14 +1987,16 @@ function startSpectatePoll(){
 function stopSpectatePoll(){if(S.vsSpecPollInterval){clearInterval(S.vsSpecPollInterval);S.vsSpecPollInterval=null;}$('spec-cursor').style.display='none';$('spec-cursor-label').style.display='none';}
 
 function onOpponentDone(){
+  vsLog('Gegner fertig erkannt');
   stopSpectatePoll();hideVsWaitOverlay();clearSubmitCountdown();$('vs-bottom-wait').classList.remove('show');
   if(S.vsTheirGuessLatLng&&S.resultMap){
     L.circleMarker([S.vsTheirGuessLatLng.lat,S.vsTheirGuessLatLng.lng],{radius:8,color:'#8fa89a',fillColor:'#8fa89a',fillOpacity:.8,weight:2}).addTo(S.resultMap).bindTooltip(S.vsTheirName,{permanent:true,direction:'top'});
     S.resultMap.fitBounds(L.latLngBounds([[S.current.lat,S.current.lng],[S.guessLatLng.lat,S.guessLatLng.lng],[S.vsTheirGuessLatLng.lat,S.vsTheirGuessLatLng.lng]]).pad(.5));
   }
-  if(S.vsTheirGuessLatLng&&S.current){
+  if(S.vsTheirGuessLatLng&&S.current&&S.guessLatLng){
     var theirDist=haversine(S.vsTheirGuessLatLng.lat,S.vsTheirGuessLatLng.lng,S.current.lat,S.current.lng),theirPts=calcPts(theirDist);
-    $('vs-their-guess-row').style.display='block';$('vs-their-guess-row').innerHTML='<span class="vs-their-dist">'+S.vsTheirName+': <strong>'+fmtD(theirDist)+'</strong></span>';$('vs-their-guess-row').dataset.pts=theirPts;
+    var myDist=haversine(S.guessLatLng.lat,S.guessLatLng.lng,S.current.lat,S.current.lng),myPts=calcPts(myDist);
+    renderRoundCompare(myDist,myPts,theirDist,theirPts);
   }
   updateVsStrip();showNextVoteUI();$('next-btn').disabled=false;
 }
@@ -1983,9 +2011,21 @@ function updateSpecCursor(cur,angle){
 
 var _submitCountdownInterval=null;
 function startSubmitCountdown(){
-  clearSubmitCountdown();var secs=20;var lbl=$('vs-submit-countdown');
-  if(lbl){lbl.textContent='Gegner hat noch '+secs+'s…';lbl.classList.add('show');}
-  _submitCountdownInterval=setInterval(function(){secs--;var l=$('vs-submit-countdown');if(l)l.textContent='Gegner hat noch '+secs+'s…';if(secs<=0)clearSubmitCountdown();},1000);
+  clearSubmitCountdown();var secs=45;var lbl=$('vs-submit-countdown');
+  if(lbl){lbl.textContent='Warte auf Gegner… ('+secs+'s)';lbl.classList.add('show');}
+  _submitCountdownInterval=setInterval(function(){
+    secs--;
+    var l=$('vs-submit-countdown');if(l)l.textContent='Warte auf Gegner… ('+Math.max(0,secs)+'s)';
+    if(secs<=0){clearSubmitCountdown();vsWaitFallback();}
+  },1000);
+}
+// Falls der Gegner nicht als fertig erkannt wird, trotzdem weiter lassen
+function vsWaitFallback(){
+  if(!S.isVs||S.vsTheirDone)return;
+  if(!$('result-screen').classList.contains('active'))return;
+  vsLog('wait-fallback: Gegner nicht erkannt fertig → weiter ermöglicht');
+  stopSpectatePoll();hideVsWaitOverlay();$('vs-bottom-wait').classList.remove('show');
+  showNextVoteUI();$('next-btn').disabled=false;
 }
 function clearSubmitCountdown(){
   if(_submitCountdownInterval){clearInterval(_submitCountdownInterval);_submitCountdownInterval=null;}
@@ -2010,23 +2050,32 @@ function startHeartbeat(){
   },3000);
   if(!_heartbeatListenerAdded){
     _heartbeatListenerAdded=true;
+    // Cursor gedrosselt senden (~4/s) statt bei jedem mousemove
     $('pano-container').addEventListener('mousemove',function(e){
       if(!S.vsRoom||!S.isVs)return;
-      var rect=$('pano-container').getBoundingClientRect(),cx=(e.clientX-rect.left)/rect.width,cy=(e.clientY-rect.top)/rect.height;
-      var curKey=S.vsIsHost?'host_map_cursor':'guest_map_cursor',p={};p[curKey]={x:cx,y:cy};
-      sbFetch('rooms?id=eq.'+S.vsRoom,'PATCH',p).catch(function(){});
+      if(!$('game-screen').classList.contains('active'))return; // nur solange man noch schaut (nicht im Ergebnis)
+      var rect=$('pano-container').getBoundingClientRect();
+      _vsCursorPending={x:(e.clientX-rect.left)/rect.width,y:(e.clientY-rect.top)/rect.height};
+      var now=Date.now();
+      if(now-_vsCursorLast>=250){_vsCursorLast=now;flushVsCursor();}
+      else if(!_vsCursorTimer){_vsCursorTimer=setTimeout(function(){_vsCursorTimer=null;_vsCursorLast=Date.now();flushVsCursor();},250-(now-_vsCursorLast));}
     });
   }
 }
+var _vsCursorLast=0,_vsCursorTimer=null,_vsCursorPending=null;
+function flushVsCursor(){
+  if(!_vsCursorPending||!S.vsRoom||!S.isVs)return;
+  var curKey=S.vsIsHost?'host_map_cursor':'guest_map_cursor',p={};p[curKey]=_vsCursorPending;_vsCursorPending=null;
+  sbFetch('rooms?id=eq.'+S.vsRoom,'PATCH',p).catch(function(){});
+}
 
-function handleDisconnect(){showDcNotice('Verbindung verloren.');}
+function handleDisconnect(){vsLog('handleDisconnect: Raum-Zeile fehlt');showDcNotice('Verbindung verloren.');}
 function showDcNotice(msg){$('dc-notice').textContent=msg;$('dc-notice').classList.add('show');}
 function hideDcNotice(){$('dc-notice').classList.remove('show');}
 
 function showNextVoteUI(){
+  clearNextVoteTimers(); // doppelte Auto-Timer vermeiden (onOpponentDone ODER Fallback)
   $('next-vote-bar').classList.add('show');updateNextVoteUI();
-  var row=$('vs-their-guess-row');
-  if(row&&row.dataset.pts){var pts=parseInt(row.dataset.pts),distSpan=row.querySelector('.vs-their-dist');if(distSpan)distSpan.insertAdjacentHTML('afterend','<span class="vs-their-pts-reveal"> · '+fmtN(pts)+' Pkt.</span>');delete row.dataset.pts;}
   var secs=NEXT_AUTO_SECS;
   S.nextVoteAutoTimer=setInterval(function(){secs--;var tb=$('next-vote-timer');if(tb)tb.textContent='('+secs+'s)';if(secs<=0){clearNextVoteTimers();nextRound();}},1000);
 }
@@ -2048,18 +2097,78 @@ function clearNextVoteTimers(){if(S.nextVoteTimer){clearInterval(S.nextVoteTimer
 async function votePlayAgain(){
   if(!S.isVs){if(S.mode==='daily'){startDailyChallenge();return;}if(S.mode==='survival'){startSurvival();return;}if(S.mode==='solo'){startSolo();return;}doPlayAgain();return;}
   if(S.myPlayAgainVoted)return;S.myPlayAgainVoted=true;$('play-again-btn').disabled=true;$('play-again-btn').textContent='Gewartet…';
+  var myVK=S.vsIsHost?'host_play_again_voted':'guest_play_again_voted';
   try{
-    var rows=await sbFetch('rooms?id=eq.'+S.vsRoom+'&select=play_again_votes'),cur=(rows&&rows[0]&&rows[0].play_again_votes)||0,myVK=S.vsIsHost?'host_play_again_voted':'guest_play_again_voted';
-    var patch={play_again_votes:cur+1};patch[myVK]=true;await sbFetch('rooms?id=eq.'+S.vsRoom,'PATCH',patch);
-    S.playAgainVotes=cur+1;updatePlayAgainVoteUI();if(S.playAgainVotes>=2)doPlayAgain();
+    // nur eigenes Flag setzen, Zähler aus beiden Flags ableiten (sonst Race bei gleichzeitigem Klick)
+    var p={last_activity:new Date().toISOString()};p[myVK]=true;
+    await sbFetch('rooms?id=eq.'+S.vsRoom,'PATCH',p);
+    var rows=await sbFetch('rooms?id=eq.'+S.vsRoom+'&select=host_play_again_voted,guest_play_again_voted');
+    var rr=(rows&&rows[0])||{},cnt=(rr.host_play_again_voted?1:0)+(rr.guest_play_again_voted?1:0);
+    S.playAgainVotes=cnt;updatePlayAgainVoteUI();
+    sbFetch('rooms?id=eq.'+S.vsRoom,'PATCH',{play_again_votes:cnt}).catch(function(){}); // Anzeige beim Gegner aktualisieren
+    if(rr.host_play_again_voted&&rr.guest_play_again_voted){doPlayAgain();return;}
+    startPlayAgainPoll(); // Haupt-Poll ist im Final-Screen aus, eigener Poll wartet auf den Gegner
   }catch(e){S.myPlayAgainVoted=false;$('play-again-btn').disabled=false;$('play-again-btn').textContent='Nochmal';}
+}
+// Wartet im Final-Screen, bis beide "Nochmal" gewählt haben (oder Host den Rematch startet)
+function startPlayAgainPoll(){
+  if(S._playAgainPoll)clearInterval(S._playAgainPoll);
+  S._playAgainPoll=setInterval(async function(){
+    if(!S.vsRoom||!$('final-screen').classList.contains('active')){clearInterval(S._playAgainPoll);S._playAgainPoll=null;return;}
+    try{
+      var rows=await sbFetch('rooms?id=eq.'+S.vsRoom+'&select=host_play_again_voted,guest_play_again_voted,host_scores');
+      var rr=(rows&&rows[0])||{},cnt=(rr.host_play_again_voted?1:0)+(rr.guest_play_again_voted?1:0);
+      if(cnt!==S.playAgainVotes){S.playAgainVotes=cnt;updatePlayAgainVoteUI();}
+      var bothVoted=rr.host_play_again_voted&&rr.guest_play_again_voted;
+      var hostStartedRematch=!S.vsIsHost&&S.myPlayAgainVoted&&(!rr.host_scores||rr.host_scores.length===0);
+      if(bothVoted||hostStartedRematch){clearInterval(S._playAgainPoll);S._playAgainPoll=null;doPlayAgain();}
+    }catch(e){}
+  },1500);
 }
 function updatePlayAgainVoteUI(){var bar=$('play-again-vote');bar.style.display='block';bar.textContent='Nochmal ('+S.playAgainVotes+'/2)';}
 
 function doPlayAgain(){
+  if(S._playAgainPoll){clearInterval(S._playAgainPoll);S._playAgainPoll=null;}
   var locs=shuffle(LOCATIONS.slice()).slice(0,5).map(function(l){return l.id;});
   if(S.vsIsHost){sbFetch('rooms?id=eq.'+S.vsRoom,'PATCH',{location_ids:locs,host_scores:[],guest_scores:[],host_done:false,guest_done:false,next_votes:0,play_again_votes:0,host_next_voted:false,guest_next_voted:false,host_play_again_voted:false,guest_play_again_voted:false,last_activity:new Date().toISOString()}).catch(function(){});startVsGame(locs);}
   else{var iv=setInterval(async function(){try{var rows=await sbFetch('rooms?id=eq.'+S.vsRoom+'&select=location_ids,host_scores');if(rows&&rows[0]&&(!rows[0].host_scores||rows[0].host_scores.length===0)){clearInterval(iv);startVsGame(rows[0].location_ids);}}catch(e){}},2000);}
+}
+
+// Kopf-an-Kopf-Auswertung: Du vs Gegner, Punkte und Distanz, Sieger markiert
+function renderRoundCompare(myDist,myPts,theirDist,theirPts){
+  var row=$('vs-their-guess-row');if(!row)return;
+  var iWon=myPts>theirPts,theyWon=theirPts>myPts;
+  var mid=iWon?'▸':theyWon?'◂':'=';
+  row.style.display='block';
+  row.innerHTML=
+    '<div class="vs-h2h">'+
+      '<div class="vs-h2h-side'+(iWon?' win':'')+'">'+
+        '<div class="vs-h2h-name">Du</div>'+
+        '<div class="vs-h2h-pts">'+fmtN(myPts)+'</div>'+
+        '<div class="vs-h2h-dist">'+fmtD(myDist)+'</div>'+
+      '</div>'+
+      '<div class="vs-h2h-mid">'+mid+'</div>'+
+      '<div class="vs-h2h-side'+(theyWon?' win':'')+'">'+
+        '<div class="vs-h2h-name">'+escHtml(S.vsTheirName||'Gegner')+'</div>'+
+        '<div class="vs-h2h-pts">'+fmtN(theirPts)+'</div>'+
+        '<div class="vs-h2h-dist">'+fmtD(theirDist)+'</div>'+
+      '</div>'+
+    '</div>';
+}
+
+// Hinweis sobald der Gegner getippt hat, während du noch ratest
+function maybeShowOpponentGuessedHint(){
+  if(!S.isVs)return;
+  if(!$('game-screen').classList.contains('active'))return; // nur solange DU noch ratest
+  var theyDone=(S.vsTheirScores||[]).length>S.round;
+  if(theyDone&&S._oppHintRound!==S.round){
+    S._oppHintRound=S.round;
+    var el=$('vs-opponent-guessed');if(!el)return;
+    el.textContent='⚡ '+(S.vsTheirName||'Gegner')+' hat schon geraten';
+    el.classList.add('show');
+    if(el._t)clearTimeout(el._t);
+    el._t=setTimeout(function(){el.classList.remove('show');},4500);
+  }
 }
 
 function updateVsStrip(){
