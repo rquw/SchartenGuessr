@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TernberGuessr</title>
-<script>document.title='TernberGuessr';</script>
+<title>SchartenGuessr</title>
+<script>document.title='SchartenGuessr';</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -100,8 +100,8 @@
 <!-- START -->
 <div class="screen active" id="start-screen">
   <div class="logo">
-    <h1 id="logo-h1" onclick="triggerLogoAnim()" title="">Ternber<em>Guessr</em></h1>
-    <p id="logo-p">wie gut kennst du ternberg?</p>
+    <h1 id="logo-h1" onclick="triggerLogoAnim()" title="">Scharten<em>Guessr</em></h1>
+    <p id="logo-p">wie gut kennst du scharten?</p>
   </div>
   <div id="streak-display-start" style="display:none"></div>
   <div class="start-main" id="start-main">
@@ -114,11 +114,14 @@
       <div class="mehr-guessr-wrap" id="mehr-guessr-wrap">
         <button class="start-icon-btn mehr-guessr-btn" data-label="Mehr Guessr" onclick="toggleMehrGuessr(event)">🌍</button>
         <div class="mehr-guessr-dropdown" id="mehr-guessr-dropdown">
-          <div class="mehr-guessr-item mehr-guessr-active">
-            <span class="mehr-guessr-check">✓</span>TernberGuessr
+          <div class="mehr-guessr-item" onclick="window.location.href='https://rquw.github.io/TernberGuessr'">
+            <span class="mehr-guessr-check" style="visibility:hidden">✓</span>TernberGuessr
           </div>
           <div class="mehr-guessr-item" onclick="window.location.href='https://rquw.github.io/WelsGuessr'">
             <span class="mehr-guessr-check" style="visibility:hidden">✓</span>WelsGuessr
+          </div>
+          <div class="mehr-guessr-item mehr-guessr-active">
+            <span class="mehr-guessr-check">✓</span>SchartenGuessr
           </div>
         </div>
       </div>
@@ -133,13 +136,13 @@
 <div class="screen" id="info-screen" style="justify-content:flex-start;overflow-y:auto">
   <div class="info-layout">
     <div class="info-header">
-      <h1>Ternber<em>Guessr</em></h1>
+      <h1>Scharten<em>Guessr</em></h1>
       <p>Über das Spiel</p>
     </div>
     <div class="info-section">
       <div class="info-section-label">Info</div>
-      <div class="info-section-title">Was ist TernberGuessr?</div>
-      <div class="info-section-body">TernberGuesser ist ein Spiel, wo man ein zufälliges Bild innerhalb Ternberg bekommt, und auf der Karte die Position anzeigen muss. Die „Tägliche Challenge" ist für jeden gleich und nimmt eine zufällige Position täglich um 00:00. Erstelle gerne einen Account!</div>
+      <div class="info-section-title">Was ist SchartenGuessr?</div>
+      <div class="info-section-body">SchartenGuesser ist ein Spiel, wo man ein zufälliges Bild innerhalb Scharten bekommt, und auf der Karte die Position anzeigen muss. Die „Tägliche Challenge" ist für jeden gleich und nimmt eine zufällige Position täglich um 00:00. Erstelle gerne einen Account!</div>
     </div>
     <div class="info-section">
       <div class="info-section-label">Kontakt</div>
@@ -153,7 +156,7 @@
     <div class="info-section">
       <div class="info-section-label">Rechtliches</div>
       <div class="info-section-title">Hinweise</div>
-      <div class="info-section-body">Diese Website hat nichts mit irgendwas Offiziellem zu tun. Ich, selbst ein Ternberg-Einwohner, hat als Passion-Projekt diese Website selbst mit Liebe erstellt. Bilder/Panoramas sind direkt von der Google Street View API gezogen.</div>
+      <div class="info-section-body">Diese Website hat nichts mit irgendwas Offiziellem zu tun. Ich, selbst ein Scharten-Einwohner, hat als Passion-Projekt diese Website selbst mit Liebe erstellt. Bilder/Panoramas sind direkt von der Google Street View API gezogen.</div>
       <div class="info-legal-warn">⚠ Bitte nimm kein Passwort, das du regulär benützt, für einen Account auf dieser Website.</div>
     </div>
     <div class="info-back-row">
@@ -199,7 +202,7 @@
       <div class="menu-card-bg" id="vs-card-bg"></div>
       <div class="menu-card-left">
         <div class="menu-card-title">1v1</div>
-        <div class="menu-card-sub">Wer ist der wahre Ternberger?</div>
+        <div class="menu-card-sub">Wer ist der wahre Schartner?</div>
       </div>
       <div class="menu-card-right">
         <button class="menu-card-cta" onclick="openVsModal();event.stopPropagation()">Starten →</button>
@@ -258,7 +261,7 @@
 <!-- QR BEITRETEN -->
 <div class="screen" id="qr-join-screen">
   <div class="logo" style="margin-bottom:1rem">
-    <h1 style="transform:none;opacity:1;font-size:clamp(1.8rem,7vw,3rem)">Ternber<em>Guessr</em></h1>
+    <h1 style="transform:none;opacity:1;font-size:clamp(1.8rem,7vw,3rem)">Scharten<em>Guessr</em></h1>
   </div>
   <div class="qr-join-box">
     <h2>Raum beitreten</h2>
@@ -585,7 +588,7 @@
     <div class="changelog-header">
       <div class="changelog-masthead">
         <div class="changelog-masthead-eyebrow">OFFIZIELLES UPDATE-PROTOKOLL</div>
-        <div class="changelog-masthead-title">TernberGuessr</div>
+        <div class="changelog-masthead-title">SchartenGuessr</div>
         <div class="changelog-masthead-sub">Alle Änderungen, Verbesserungen &amp; Neuerungen</div>
         <div class="changelog-masthead-line"></div>
       </div>
